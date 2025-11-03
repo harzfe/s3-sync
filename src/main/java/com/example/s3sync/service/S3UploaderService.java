@@ -28,8 +28,8 @@ public class S3UploaderService {
     /** AWS S3 client used to perform uploads. */
     private final S3Client s3;
 
-    /** Target S3 bucket, injected from application properties (s3.bucket). */
-    @Value("${s3.bucket}")
+    /** Target S3 bucket, injected from application properties (aws.s3.bucket). */
+    @Value("${aws.s3.bucket}")
     private String bucket;
 
     /**
