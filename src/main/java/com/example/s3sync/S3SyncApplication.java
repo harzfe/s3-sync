@@ -1,4 +1,4 @@
-package com.example.s3_sync;
+package com.example.s3sync;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
