@@ -1,9 +1,41 @@
 services:
+  # PostgreSQL database service
   postgres:
-    image: 'postgres:latest'
+    image: postgres:18
+    container_name: postgres18
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      POSTGRES_DB: app
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
     ports:
-      - '5432'
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # S3 emulator using LocalStack
+  localstack:
+    image: localstack/localstack:stable
+    container_name: localstack-s3
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=eu-central-1
+      - LS_LOG=warning
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dbdata:
+  localstack:
