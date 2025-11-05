@@ -1,22 +1,38 @@
 package com.example.s3sync.scheduling;
 
+import java.util.List;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.example.s3sync.service.SyncService;
+import com.example.s3sync.domain.Customer;
+import com.example.s3sync.domain.Order;
+import com.example.s3sync.service.CustomerSyncService;
+import com.example.s3sync.service.OrderSyncService;
+import com.example.s3sync.service.SyncDiffService;
 
 /**
- * Scheduled job that triggers synchronization tasks.
+ * Scheduled job that triggers synchronization tasks for customers and orders.
  *
  * <p>
- * This component runs periodically and delegates to {@link SyncService}
- * to perform customer and order synchronization. The scheduling configuration
- * on the {@link #runSyncJob()} method uses a cron expression and the
- * Europe/Berlin timezone so timestamps and triggers align with the local
- * business timezone.
+ * This component periodically polls the domain for rows that need to be
+ * synchronized (via {@link SyncDiffService}) and delegates persistence and
+ * upload work to {@link CustomerSyncService} and {@link OrderSyncService}.
+ * The job is scheduled using a cron expression and runs in the
+ * Europe/Berlin timezone to align with local business hours.
+ * </p>
+ *
+ * <p>
+ * Operational notes:
+ * <ul>
+ * <li>The job runs every minute.</li>
+ * <li>Each run queries unsynced customers and orders separately and
+ * triggers their respective sync-and-upload flows only when work
+ * is detected.</li>
+ * </ul>
  * </p>
  */
 @Slf4j
@@ -24,22 +40,42 @@ import com.example.s3sync.service.SyncService;
 @RequiredArgsConstructor
 public class SyncJob {
 
-    private final SyncService syncService;
+    private final SyncDiffService syncDiffService;
+    private final CustomerSyncService customerSyncService;
+    private final OrderSyncService orderSyncService;
 
     /**
-     * Executes the sync job on a schedule.
+     * Runs the synchronization cycle.
      *
      * <p>
-     * Configured cron expression: — this runs the
-     * job every minute (at second 0). The timezone is set to Europe/Berlin.
-     * The method logs the start of a run and delegates to {@link SyncService}
-     * for the actual sync work.
+     * Behavior:
+     * <ol>
+     * <li>Ask {@link SyncDiffService} for unsynced customers and, if any are found,
+     * call {@link CustomerSyncService#syncAndUpload(List)}.</li>
+     * <li>Ask {@link SyncDiffService} for unsynced orders and, if any are found,
+     * call {@link OrderSyncService#syncAndUpload(List)}.</li>
+     * </ol>
+     * </p>
+     *
+     * <p>
+     * The method is annotated with a cron schedule that currently triggers
+     * execution every minute at second 0 in the Europe/Berlin timezone.
      * </p>
      */
     @Scheduled(cron = "0 */1 * * * *", zone = "Europe/Berlin")
     public void runSyncJob() {
         log.info("Starting sync job");
-        syncService.syncCustomer();
-        syncService.syncOrders();
+        List<Customer> unsyncedCustomers = syncDiffService.getUnsyncedCustomers();
+        if (!unsyncedCustomers.isEmpty()) {
+            customerSyncService.syncAndUpload(unsyncedCustomers);
+        } else {
+            log.info("No unsynced customers found");
+        }
+        List<Order> unsyncedOrders = syncDiffService.getUnsyncedOrders();
+        if (!unsyncedOrders.isEmpty()) {
+            orderSyncService.syncAndUpload(unsyncedOrders);
+        } else {
+            log.info("No unsynced orders found");
+        }
     }
 }

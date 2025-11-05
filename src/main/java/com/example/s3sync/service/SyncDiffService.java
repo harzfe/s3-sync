@@ -14,21 +14,28 @@ import com.example.s3sync.repository.OrderRepository;
 import com.example.s3sync.repository.SyncedCustomerHashRepository;
 import com.example.s3sync.repository.SyncedOrderHashRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Service that computes the difference between local domain data and the
- * set of rows already synced to the external system.
+ * Service that computes which rows require synchronization.
  *
  * <p>
- * This service inspects customers and orders stored in the local
- * repositories, compares them against stored sync markers/hashes and
- * returns lists of entities that need to be (re-)synchronized. When an
- * entity is detected as changed or missing in the sync-tracking table, a
- * new tracking entry is created/updated with the current marker/hash so
- * subsequent runs will skip unchanged rows.
+ * Responsibilities:
+ * <ul>
+ * <li>Scan domain repositories (customers and orders).</li>
+ * <li>Compute stable markers/hashes for each row using
+ * {@link HashService}.</li>
+ * <li>Compare computed values against persisted sync markers stored in
+ * {@code synced_kunde_hash} / {@code synced_auftrag_hash}.</li>
+ * <li>Return lists of entities that are either missing in the tracking
+ * table or whose computed marker differs from the persisted value.</li>
+ * </ul>
+ * </p>
+ *
+ * <p>
+ * Important: these helper methods only detect and return changed rows.
+ * They do not persist tracking entries themselves
  * </p>
  */
 @Slf4j
@@ -43,36 +50,28 @@ public class SyncDiffService {
     private final HashService hashService;
 
     /**
-     * Return a list of customers that need to be synced.
+     * Return a list of customers that should be synchronized.
      *
      * <p>
-     * The method scans all customers and compares a computed row-hash to
-     * the stored value in {@code synced_kunde_hash}. If no stored entry
-     * exists or the hash differs, the customer is considered unsynced and
-     * included in the returned list. A tracking entry containing the new
-     * hash will be saved for each processed customer.
+     * This method iterates over all customers and computes a stable
+     * row-hash. If no entry exists in the sync-tracking repository or the
+     * stored hash does not match the computed one, the customer is included
+     * in the returned list.
+     * </p>
+     *
+     * <p>
+     * Note: the method does not mutate the tracking table
      * </p>
      *
      * @return list of {@link Customer} entities that require synchronization
      */
-    @Transactional
-    List<Customer> getUnsyncedCustomers() {
+    public List<Customer> getUnsyncedCustomers() {
         log.info("Checking for unsynced customers");
         List<Customer> unsyncedCustomers = new ArrayList<>();
         List<Customer> allCustomers = customerRepository.findAll();
         for (Customer customer : allCustomers) {
             if (!syncedCustomerHashRepository.existsById(customer.getId()) || !checkCustomerHash(customer)) {
                 unsyncedCustomers.add(customer);
-
-                syncedCustomerHashRepository.save(SyncedCustomerHash.builder().kundenId(
-                        customer.getId())
-                        .rowHash(hashService.customerRowHash(customer.getFirmenname(),
-                                customer.getStrasse(),
-                                customer.getStrassenzusatz(), customer.getOrt(), customer.getLand(),
-                                customer.getPlz(),
-                                customer.getVorname(), customer.getNachname(), customer.getEmail(),
-                                customer.getId().toString()))
-                        .build());
             }
         }
         log.info("Found {} unsynced customers", unsyncedCustomers.size());
@@ -80,29 +79,27 @@ public class SyncDiffService {
     }
 
     /**
-     * Return a list of orders that need to be synced.
+     * Return a list of orders that should be synchronized.
      *
      * <p>
-     * Scans all orders and uses a marker/hash derived from the order's
-     * <code>lastchange</code> field to decide whether the order changed
-     * since the last sync. Missing or changed entries are returned and a
-     * tracking marker is persisted for each.
+     * All orders are scanned and a marker is derived from the order's
+     * <code>lastchange</code> value. Orders without a tracking entry or
+     * with a differing marker are returned.
+     * </p>
+     *
+     * <p>
+     * As with customers, this method does not persist tracking markers
      * </p>
      *
      * @return list of {@link Order} entities that require synchronization
      */
-    @Transactional
-    List<Order> getUnsyncedOrders() {
+    public List<Order> getUnsyncedOrders() {
         log.info("Checking for unsynced orders");
         List<Order> unsyncedOrders = new ArrayList<>();
         List<Order> allOrders = orderRepository.findAll();
         for (Order order : allOrders) {
             if (!syncedOrderHashRepository.existsById(order.getId()) || !checkOrderHash(order)) {
                 unsyncedOrders.add(order);
-                syncedOrderHashRepository.save(SyncedOrderHash.builder().orderId(
-                        order.getId())
-                        .markerHash(hashService.orderMarkerHash(order.getLastchange()))
-                        .build());
             }
         }
         log.info("Found {} unsynced orders", unsyncedOrders.size());
@@ -110,12 +107,19 @@ public class SyncDiffService {
     }
 
     /**
-     * Verify whether the stored customer row hash equals the freshly computed
-     * hash for the provided customer.
+     * Verify whether the persisted customer row hash equals the computed one.
+     *
+     * <p>
+     * This method expects a tracking entry to exist for the provided
+     * customer's id; otherwise {@link java.util.NoSuchElementException} will
+     * be thrown by the underlying repository call.
+     * </p>
      *
      * @param customer the customer to check
-     * @return {@code true} if the stored hash matches the computed hash,
+     * @return {@code true} when the stored hash matches the computed hash,
      *         {@code false} otherwise
+     * @throws java.util.NoSuchElementException if no tracking entry exists
+     *                                          for the given customer id
      */
     private boolean checkCustomerHash(Customer customer) {
         String hash = hashService.customerRowHash(customer.getFirmenname(),
@@ -133,12 +137,18 @@ public class SyncDiffService {
     }
 
     /**
-     * Verify whether the stored order marker/hash equals the freshly computed
-     * marker for the provided order.
+     * Verify whether the persisted order marker equals the computed marker.
+     *
+     * <p>
+     * As above, a missing tracking entry will cause the repository call to
+     * throw {@link java.util.NoSuchElementException}.
+     * </p>
      *
      * @param order the order to check
-     * @return {@code true} if the stored marker matches the computed marker,
+     * @return {@code true} when the stored marker matches the computed marker,
      *         {@code false} otherwise
+     * @throws java.util.NoSuchElementException if no tracking entry exists
+     *                                          for the given order id
      */
     private boolean checkOrderHash(Order order) {
         String hash = hashService.orderMarkerHash(order.getLastchange());
