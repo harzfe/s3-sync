@@ -17,12 +17,21 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 /**
- * Service responsible for converting lists of DTOs into CSV byte arrays.
+ * Service that renders DTO lists to CSV byte arrays.
  *
  * <p>
- * The service uses Apache Commons CSV to produce UTF-8 encoded CSV data
- * which can be uploaded to S3 or saved locally. Methods are small helpers
- * that accept DTO lists and return the generated CSV as a byte array.
+ * This service uses Apache Commons CSV to produce UTF-8 encoded CSV
+ * output. The helper methods accept lists of DTOs and return the CSV
+ * content as a byte array suitable for uploading to S3 or writing to disk.
+ * </p>
+ *
+ * <p>
+ * CSV format details:
+ * <ul>
+ * <li>Format: {@link CSVFormat#DEFAULT} with LF record separators.</li>
+ * <li>Encoding: UTF-8.</li>
+ * <li>No header row is produced by the current helpers.</li>
+ * </ul>
  * </p>
  */
 @Slf4j
@@ -30,11 +39,17 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CsvService {
 
-    private static final CSVFormat FORMAT = CSVFormat.DEFAULT.builder().build();
+    private static final CSVFormat FORMAT = CSVFormat.DEFAULT.builder().setRecordSeparator("\n").build();
 
     /**
-     * Create a CSV from a list of {@link CustomerCsvDto} and return it as a
-     * UTF-8 encoded byte array.
+     * Create a CSV from a list of {@link CustomerCsvDto} and return it as UTF-8
+     * encoded bytes.
+     *
+     * <p>
+     * The CSV contains one record per DTO in the following column order:
+     * firma, strasse, strassenzusatz, ort, land, plz, vorname, nachname,
+     * kundenId.
+     * </p>
      *
      * @param rows the customer rows to write
      * @return CSV data encoded as UTF-8 bytes
@@ -65,8 +80,13 @@ public class CsvService {
     }
 
     /**
-     * Create a CSV from a list of {@link OrderCsvDto} and return it as a
-     * UTF-8 encoded byte array.
+     * Create a CSV from a list of {@link OrderCsvDto} and return it as UTF-8
+     * encoded bytes.
+     *
+     * <p>
+     * The CSV contains one record per DTO in the following column order:
+     * auftragId, artikelnummer, kundeId.
+     * </p>
      *
      * @param rows the order rows to write
      * @return CSV data encoded as UTF-8 bytes
