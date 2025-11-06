@@ -12,20 +12,17 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Scheduled job that triggers synchronization tasks for customers and orders.
+ * Lightweight scheduled trigger that initiates the synchronization flow for customers and orders.
  *
- * <p>This component periodically polls the domain for rows that need to be synchronized (via {@link
- * SyncDiffService}) and delegates persistence and upload work to {@link CustomerSyncService} and
- * {@link OrderSyncService}. The job is scheduled using a cron expression and runs in the
- * Europe/Berlin timezone to align with local business hours.
+ * <p>Behavior: on each scheduled execution the job asks {@link SyncDiffService} for unsynced
+ * customers and unsynced orders and delegates processing to the {@link CustomerSyncService} and
+ * {@link OrderSyncService} respectively. The sync services perform persistence of tracking entries
+ * and schedule any S3 uploads transactionally.
  *
- * <p>Operational notes:
- *
- * <ul>
- *   <li>The job runs every minute.
- *   <li>Each run queries unsynced customers and orders separately and triggers their respective
- *       sync-and-upload flows only when work is detected.
- * </ul>
+ * <p>Scheduling is driven by configuration properties. The method-level scheduling annotation uses
+ * `fixedRateString` and `initialDelayString` to read `scheduler.rate` and `scheduler.delay` from
+ * the application configuration — this allows controlling execution frequency without recompiling
+ * the application.
  */
 @Slf4j
 @Component
@@ -51,7 +48,7 @@ public class SyncJob {
    * <p>The method is annotated with a cron schedule that currently triggers execution every minute
    * at second 0 in the Europe/Berlin timezone.
    */
-  @Scheduled(cron = "0 */1 * * * *", zone = "Europe/Berlin")
+  @Scheduled(fixedRateString = "${scheduler.rate}", initialDelayString = "${scheduler.delay}")
   public void runSyncJob() {
     log.info("Starting sync job");
     List<Customer> unsyncedCustomers = syncDiffService.getUnsyncedCustomers();
@@ -66,5 +63,6 @@ public class SyncJob {
     } else {
       log.info("No unsynced orders found");
     }
+    log.info("Sync job completed");
   }
 }
