@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS auftraege (
 	artikelnummer varchar(255) NOT NULL,
 	created varchar(255) NOT NULL,
 	lastchange varchar(255) NOT NULL,
-	kundeid varchar(255) NOT NULL
+	kundeid varchar(255) NOT NULL,
+	CONSTRAINT auftraege_pkey PRIMARY KEY (auftragid)
 );
 CREATE TABLE IF NOT EXISTS kunde (
 	kundenid bigserial NOT NULL,
