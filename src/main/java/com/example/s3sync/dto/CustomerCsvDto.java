@@ -5,10 +5,8 @@ import lombok.Builder;
 /**
  * Data Transfer Object used for CSV export of customer data.
  *
- * <p>
- * This DTO contains the fields that are written to the CSV file when
- * exporting customers. Field names reflect the columns used in the CSV.
- * </p>
+ * <p>This DTO contains the fields that are written to the CSV file when exporting customers. Field
+ * names reflect the columns used in the CSV.
  */
 @Builder
 public record CustomerCsvDto(
@@ -41,5 +39,4 @@ public record CustomerCsvDto(
     String email,
 
     /** Customer id as string (CSV column: kundenId). */
-    String kundenId
-) {}
+    String kundenId) {}
