@@ -1,31 +1,23 @@
 package com.example.s3sync.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /**
- * Data Transfer Object used for CSV export of orders.
+ * Data Transfer Object used for CSV export of order data.
  *
  * <p>
- * This DTO contains the columns that are written to the CSV file when
- * exporting orders. Field names reflect the CSV column names.
+ * This DTO contains the fields that are written to the CSV file when
+ * exporting orders. Field names reflect the columns used in the CSV.
  * </p>
- * 
  */
-@Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class OrderCsvDto {
+public record OrderCsvDto(
+        /** Order id written to the CSV (column: auftragId). */
+        String auftragId,
 
-    /** Order id written to the CSV (column: auftragId). */
-    private String auftragId;
+        /** Product / article number (CSV column: artikelnummer). */
+        String artikelnummer,
 
-    /** Product / article number (CSV column: artikelnummer). */
-    private String artikelnummer;
-
-    /** Customer id associated with the order (CSV column: kundeId). */
-    private String kundeId;
+        /** Customer id associated with the order (CSV column: kundeId). */
+        String kundeId) {
 }

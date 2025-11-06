@@ -1,9 +1,6 @@
 package com.example.s3sync.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /**
  * Data Transfer Object used for CSV export of customer data.
@@ -13,39 +10,36 @@ import lombok.NoArgsConstructor;
  * exporting customers. Field names reflect the columns used in the CSV.
  * </p>
  */
-@Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CustomerCsvDto {
+public record CustomerCsvDto(
 
     /** Company name (CSV column: firma). */
-    private String firma;
+    String firma,
 
     /** Street name (CSV column: strasse). */
-    private String strasse;
+    String strasse,
 
     /** Additional street information (CSV column: strassenzusatz). */
-    private String strassenzusatz;
+    String strassenzusatz,
 
     /** City (CSV column: ort). */
-    private String ort;
+    String ort,
 
     /** Country (CSV column: land). */
-    private String land;
+    String land,
 
     /** Postal code / ZIP (CSV column: plz). */
-    private String plz;
+    String plz,
 
     /** Given name / first name (CSV column: vorname). */
-    private String vorname;
+    String vorname,
 
     /** Family name / last name (CSV column: nachname). */
-    private String nachname;
+    String nachname,
 
     /** Email address (CSV column: email). */
-    private String email;
+    String email,
 
     /** Customer id as string (CSV column: kundenId). */
-    private String kundenId;
-}
+    String kundenId
+) {}

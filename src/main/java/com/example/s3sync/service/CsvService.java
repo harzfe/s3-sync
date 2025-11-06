@@ -62,15 +62,15 @@ public class CsvService {
                 CSVPrinter csvPrinter = new CSVPrinter(writer, FORMAT)) {
             for (CustomerCsvDto r : rows) {
                 csvPrinter.printRecord(
-                        r.getFirma(),
-                        r.getStrasse(),
-                        r.getStrassenzusatz(),
-                        r.getOrt(),
-                        r.getLand(),
-                        r.getPlz(),
-                        r.getVorname(),
-                        r.getNachname(),
-                        r.getKundenId());
+                        r.firma(),
+                        r.strasse(),
+                        r.strassenzusatz(),
+                        r.ort(),
+                        r.land(),
+                        r.plz(),
+                        r.vorname(),
+                        r.nachname(),
+                        r.kundenId());
             }
         } catch (Exception e) {
             throw new RuntimeException("Customer CSV generation failed", e);
@@ -100,9 +100,9 @@ public class CsvService {
 
             for (OrderCsvDto r : rows) {
                 csvPrinter.printRecord(
-                        r.getAuftragId(),
-                        r.getArtikelnummer(),
-                        r.getKundeId());
+                        r.auftragId(),
+                        r.artikelnummer(),
+                        r.kundeId());
             }
 
         } catch (Exception e) {
